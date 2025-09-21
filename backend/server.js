@@ -8,7 +8,7 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
-      ? [process.env.FRONTEND_URL, "https://your-game.vercel.app"]
+      ? [process.env.FRONTEND_URL, "https://your-actual-vercel-app.vercel.app"]
       : "http://localhost:3000",
     methods: ["GET", "POST"],
     credentials: true
