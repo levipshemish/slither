@@ -52,11 +52,11 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Game state - Circular world based on viewport
+// Game state - Circular world with fixed boundary
 const gameState = {
   players: new Map(),
   food: [],
-  worldRadius: 5000, // This will be updated based on client viewport
+  worldRadius: 2000, // Fixed boundary radius (matches red line)
   centerX: 0,        // Center of the circular world
   centerY: 0,
   maxFood: 200
@@ -280,13 +280,6 @@ io.on('connection', (socket) => {
   
   socket.on('joinGame', (playerData) => {
     console.log('Player joining:', playerData.name);
-    
-    // Update world size based on viewport if provided (10x viewport)
-    if (playerData.viewportWidth && playerData.viewportHeight) {
-      const avgViewport = (playerData.viewportWidth + playerData.viewportHeight) / 2;
-      gameState.worldRadius = avgViewport * 5; // 10x viewport diameter = 5x radius
-      console.log(`🌍 Updated world radius to: ${gameState.worldRadius} based on viewport: ${playerData.viewportWidth}x${playerData.viewportHeight}`);
-    }
     
     // Initialize new player at random position within circular world
     const startAngle = Math.random() * 2 * Math.PI;

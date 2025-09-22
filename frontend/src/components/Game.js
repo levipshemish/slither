@@ -62,43 +62,18 @@ const Game = () => {
   }, [gameState, playerId]);
 
   const drawCircularBoundary = (ctx, gameState) => {
-    // Debug log
-    console.log('Drawing boundary. WorldRadius:', gameState.worldRadius, 'CenterX:', gameState.centerX, 'CenterY:', gameState.centerY);
+    // Draw the red boundary line at a visible radius (2000px from center)
+    const centerX = 0; // Center at world origin
+    const centerY = 0;
+    const radius = 2000; // Fixed visible boundary radius
     
-    // Always draw a test circle first to make sure drawing works
-    ctx.strokeStyle = '#00FF00';
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#FF0000';
+    ctx.lineWidth = 8;
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
     ctx.beginPath();
-    ctx.arc(0, 0, 500, 0, 2 * Math.PI); // Small green test circle
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
     ctx.stroke();
-    
-    // Draw the actual boundary if we have the data
-    if (gameState.worldRadius && gameState.worldRadius > 0) {
-      const centerX = gameState.centerX || 0;
-      const centerY = gameState.centerY || 0;
-      const radius = gameState.worldRadius;
-      
-      // Draw bright, thick red boundary line
-      ctx.strokeStyle = '#FF0000';
-      ctx.lineWidth = 12;
-      ctx.setLineDash([]);
-      ctx.globalAlpha = 1;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-      ctx.stroke();
-      
-      console.log('Drew red boundary circle at', centerX, centerY, 'with radius', radius);
-    } else {
-      console.log('No worldRadius found, drawing fallback boundary');
-      // Fallback - draw a smaller circle we can definitely see
-      ctx.strokeStyle = '#FF0000';
-      ctx.lineWidth = 8;
-      ctx.beginPath();
-      ctx.arc(0, 0, 2000, 0, 2 * Math.PI);
-      ctx.stroke();
-    }
   };
 
   const drawGrid = (ctx, offsetX, offsetY, width, height) => {
