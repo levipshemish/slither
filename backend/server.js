@@ -189,7 +189,6 @@ function checkFoodCollision(player) {
     }
   });
 }
-}
 
 function checkPlayerCollisions(currentPlayer) {
   gameState.players.forEach((otherPlayer) => {
