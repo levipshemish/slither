@@ -5,18 +5,51 @@ const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
+// CORS origins for production and development
+const getAllowedOrigins = () => {
+  const origins = [];
+  
+  if (process.env.NODE_ENV === 'production') {
+    // Add environment variable if set
+    if (process.env.FRONTEND_URL) {
+      origins.push(process.env.FRONTEND_URL);
+      console.log('🌍 Added FRONTEND_URL to CORS:', process.env.FRONTEND_URL);
+    }
+    // Add known Vercel URLs (with and without trailing slash)
+    origins.push(
+      "https://slither-565t.vercel.app",
+      "https://slither-565t.vercel.app/",
+      "https://slither2-zeta.vercel.app",
+      "https://slither2-zeta.vercel.app/"
+    );
+    // Allow all vercel.app subdomains in production for this app
+    origins.push(/https:\/\/.*\.vercel\.app$/);
+    console.log('🔒 Production CORS origins:', origins.filter(o => typeof o === 'string'));
+  } else {
+    // Development
+    origins.push("http://localhost:3000", "http://127.0.0.1:3000");
+    console.log('🔧 Development CORS origins:', origins);
+  }
+  
+  return origins;
+};
+
 const io = socketIo(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? [process.env.FRONTEND_URL, "https://your-actual-vercel-app.vercel.app"]
-      : "http://localhost:3000",
-    methods: ["GET", "POST"],
-    credentials: true
+    origin: getAllowedOrigins(),
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
   }
 });
 
-// Middleware
-app.use(cors());
+// Middleware - Use the same CORS configuration as Socket.IO
+app.use(cors({
+  origin: getAllowedOrigins(),
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
 
 // Game state
@@ -163,7 +196,8 @@ function respawnPlayer(player) {
 
 // Socket connection handling
 io.on('connection', (socket) => {
-  console.log('Player connected:', socket.id);
+  const origin = socket.handshake.headers.origin || socket.handshake.headers.referer;
+  console.log('🎮 Player connected:', socket.id, 'from origin:', origin);
   
   socket.on('joinGame', (playerData) => {
     console.log('Player joining:', playerData.name);
