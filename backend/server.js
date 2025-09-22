@@ -52,12 +52,13 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Game state
+// Game state - Circular world based on viewport
 const gameState = {
   players: new Map(),
   food: [],
-  gameWidth: 4000,
-  gameHeight: 4000,
+  worldRadius: 5000, // This will be updated based on client viewport
+  centerX: 0,        // Center of the circular world
+  centerY: 0,
   maxFood: 200
 };
 
@@ -71,11 +72,47 @@ function getDistance(pos1, pos2) {
   return Math.sqrt(Math.pow(pos1.x - pos2.x, 2) + Math.pow(pos1.y - pos2.y, 2));
 }
 
+// Check if a position is within the circular boundary
+function isWithinBounds(x, y) {
+  const distanceFromCenter = getDistance({x, y}, {x: gameState.centerX, y: gameState.centerY});
+  return distanceFromCenter <= gameState.worldRadius;
+}
+
+// Get distance from center of the world
+function getDistanceFromCenter(x, y) {
+  return getDistance({x, y}, {x: gameState.centerX, y: gameState.centerY});
+}
+
+// Push position back inside boundary if outside
+function constrainToBounds(x, y) {
+  const distanceFromCenter = getDistanceFromCenter(x, y);
+  
+  if (distanceFromCenter <= gameState.worldRadius) {
+    return {x, y}; // Already within bounds
+  }
+  
+  // Calculate angle from center to point
+  const angle = Math.atan2(y - gameState.centerY, x - gameState.centerX);
+  
+  // Place on the boundary (with small margin)
+  const margin = 20;
+  const constrainedDistance = gameState.worldRadius - margin;
+  
+  return {
+    x: gameState.centerX + Math.cos(angle) * constrainedDistance,
+    y: gameState.centerY + Math.sin(angle) * constrainedDistance
+  };
+}
+
 function generateFood() {
+  // Generate food within the circular boundary
+  const angle = Math.random() * 2 * Math.PI;
+  const distance = Math.random() * (gameState.worldRadius - 50); // Leave 50px margin from edge
+  
   return {
     id: Math.random().toString(36).substr(2, 9),
-    x: Math.random() * gameState.gameWidth,
-    y: Math.random() * gameState.gameHeight,
+    x: gameState.centerX + Math.cos(angle) * distance,
+    y: gameState.centerY + Math.sin(angle) * distance,
     color: getRandomColor(),
     value: 1
   };
@@ -108,12 +145,13 @@ function dropPlayerFood(player) {
     const angle = Math.random() * 2 * Math.PI;
     const distance = Math.random() * 150 + 20; // 20-170 pixels from death point
     
-    const foodX = Math.max(20, Math.min(gameState.gameWidth - 20, 
-      player.x + Math.cos(angle) * distance));
-    const foodY = Math.max(20, Math.min(gameState.gameHeight - 20, 
-      player.y + Math.sin(angle) * distance));
+    const foodX = player.x + Math.cos(angle) * distance;
+    const foodY = player.y + Math.sin(angle) * distance;
     
-    const droppedFood = generateFoodAt(foodX, foodY, foodValue);
+    // Ensure dropped food stays within circular boundary
+    const constrainedPos = constrainToBounds(foodX, foodY);
+    
+    const droppedFood = generateFoodAt(constrainedPos.x, constrainedPos.y, foodValue);
     gameState.food.push(droppedFood);
   }
   
@@ -135,14 +173,13 @@ function updatePlayers() {
   gameState.players.forEach((player) => {
     // Update player position based on direction
     const speed = 3;
-    player.x += player.direction.x * speed;
-    player.y += player.direction.y * speed;
+    const newX = player.x + player.direction.x * speed;
+    const newY = player.y + player.direction.y * speed;
     
-    // Boundary checking with wrapping
-    if (player.x < 0) player.x = gameState.gameWidth;
-    if (player.x > gameState.gameWidth) player.x = 0;
-    if (player.y < 0) player.y = gameState.gameHeight;
-    if (player.y > gameState.gameHeight) player.y = 0;
+    // Check circular boundary and constrain if necessary
+    const constrainedPos = constrainToBounds(newX, newY);
+    player.x = constrainedPos.x;
+    player.y = constrainedPos.y;
     
     // Update segments (body) to follow the head
     if (player.direction.x !== 0 || player.direction.y !== 0) {
@@ -244,9 +281,18 @@ io.on('connection', (socket) => {
   socket.on('joinGame', (playerData) => {
     console.log('Player joining:', playerData.name);
     
-    // Initialize new player
-    const startX = Math.random() * gameState.gameWidth;
-    const startY = Math.random() * gameState.gameHeight;
+    // Update world size based on viewport if provided (10x viewport)
+    if (playerData.viewportWidth && playerData.viewportHeight) {
+      const avgViewport = (playerData.viewportWidth + playerData.viewportHeight) / 2;
+      gameState.worldRadius = avgViewport * 5; // 10x viewport diameter = 5x radius
+      console.log(`🌍 Updated world radius to: ${gameState.worldRadius} based on viewport: ${playerData.viewportWidth}x${playerData.viewportHeight}`);
+    }
+    
+    // Initialize new player at random position within circular world
+    const startAngle = Math.random() * 2 * Math.PI;
+    const startDistance = Math.random() * (gameState.worldRadius * 0.3); // Start within 30% of center
+    const startX = gameState.centerX + Math.cos(startAngle) * startDistance;
+    const startY = gameState.centerY + Math.sin(startAngle) * startDistance;
     
     const player = {
       id: socket.id,
@@ -275,8 +321,9 @@ io.on('connection', (socket) => {
       gameState: {
         players: Array.from(gameState.players.values()),
         food: gameState.food,
-        gameWidth: gameState.gameWidth,
-        gameHeight: gameState.gameHeight
+        worldRadius: gameState.worldRadius,
+        centerX: gameState.centerX,
+        centerY: gameState.centerY
       }
     });
     

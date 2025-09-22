@@ -37,6 +37,9 @@ const Game = () => {
     ctx.save();
     ctx.translate(offsetX, offsetY);
 
+    // Draw circular boundary
+    drawCircularBoundary(ctx, gameState);
+    
     // Draw grid for reference
     drawGrid(ctx, offsetX, offsetY, canvas.width, canvas.height);
 
@@ -57,6 +60,30 @@ const Game = () => {
     // Draw UI
     drawUI(ctx, currentPlayer, canvas);
   }, [gameState, playerId]);
+
+  const drawCircularBoundary = (ctx, gameState) => {
+    if (!gameState.worldRadius) return;
+    
+    // Draw the boundary circle
+    ctx.strokeStyle = '#ff6b6b';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([20, 10]); // Dashed line
+    ctx.beginPath();
+    ctx.arc(gameState.centerX || 0, gameState.centerY || 0, gameState.worldRadius, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.setLineDash([]); // Reset dash
+    
+    // Add a warning zone closer to the edge
+    ctx.strokeStyle = '#ffa500';
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.3;
+    ctx.setLineDash([10, 5]);
+    ctx.beginPath();
+    ctx.arc(gameState.centerX || 0, gameState.centerY || 0, gameState.worldRadius - 100, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  };
 
   const drawGrid = (ctx, offsetX, offsetY, width, height) => {
     const gridSize = 50;
@@ -297,8 +324,12 @@ const Game = () => {
       console.log(`Player ${data.playerName} was eliminated with ${data.finalScore} points`);
     });
 
-    // Join the game
-    socketRef.current.emit('joinGame', { name: playerName });
+    // Join the game with viewport information
+    socketRef.current.emit('joinGame', { 
+      name: playerName,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight
+    });
 
     return () => {
       if (socketRef.current) {
@@ -438,6 +469,7 @@ const Game = () => {
                 <p>🖱️ Use your mouse to control direction</p>
                 <p>⚠️ Don't hit other snakes!</p>
                 <p>💎 When you die, you drop food worth your score!</p>
+                <p>🔴 Stay within the red circular boundary!</p>
               </div>
             )}
           </div>
