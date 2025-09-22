@@ -12,6 +12,9 @@ const Game = () => {
   const [playerName, setPlayerName] = useState('');
   const [gameStarted, setGameStarted] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [finalScore, setFinalScore] = useState(0);
+  const [gameOverMessage, setGameOverMessage] = useState('');
 
   // Game rendering
   const draw = useCallback(() => {
@@ -280,8 +283,18 @@ const Game = () => {
       setGameState(newGameState);
     });
 
-    socketRef.current.on('playerRespawned', () => {
-      console.log('Player respawned!');
+    socketRef.current.on('gameOver', (data) => {
+      console.log('Game Over!', data);
+      setFinalScore(data.finalScore);
+      setGameOverMessage(data.message);
+      setGameOver(true);
+      setGameStarted(false);
+      setGameState(null);
+      setPlayerId(null);
+    });
+
+    socketRef.current.on('playerEliminated', (data) => {
+      console.log(`Player ${data.playerName} was eliminated with ${data.finalScore} points`);
     });
 
     // Join the game
@@ -372,6 +385,9 @@ const Game = () => {
   const joinGame = () => {
     if (playerName.trim()) {
       setGameStarted(true);
+      setGameOver(false);
+      setFinalScore(0);
+      setGameOverMessage('');
     }
   };
 
@@ -386,6 +402,18 @@ const Game = () => {
       <div className="menu-container">
         <div className="menu">
           <h1 className="game-title">🐍 Slither.io Clone</h1>
+          
+          {gameOver && (
+            <div className="game-over-info">
+              <h2 className="game-over-title">💀 Game Over!</h2>
+              <p className="final-score">Final Score: {finalScore}</p>
+              <p className="game-over-message">{gameOverMessage}</p>
+              <div className="play-again-prompt">
+                <p>Ready to play again?</p>
+              </div>
+            </div>
+          )}
+          
           <div className="menu-content">
             <input
               type="text"
@@ -401,13 +429,17 @@ const Game = () => {
               className="play-button"
               disabled={!playerName.trim()}
             >
-              🎮 Play Game
+              {gameOver ? '🔄 Play Again' : '🎮 Play Game'}
             </button>
-            <div className="game-info">
-              <p>🎯 Eat food to grow your snake</p>
-              <p>🖱️ Use your mouse to control direction</p>
-              <p>⚠️ Don't hit other snakes!</p>
-            </div>
+            
+            {!gameOver && (
+              <div className="game-info">
+                <p>🎯 Eat food to grow your snake</p>
+                <p>🖱️ Use your mouse to control direction</p>
+                <p>⚠️ Don't hit other snakes!</p>
+                <p>💎 When you die, you drop food worth your score!</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

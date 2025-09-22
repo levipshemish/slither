@@ -81,6 +81,48 @@ function generateFood() {
   };
 }
 
+// Generate food at specific location with custom value
+function generateFoodAt(x, y, value = 1) {
+  return {
+    id: Math.random().toString(36).substr(2, 9),
+    x: x,
+    y: y,
+    color: getRandomColor(),
+    value: value
+  };
+}
+
+// Drop food when player dies
+function dropPlayerFood(player) {
+  if (player.score <= 0) return;
+  
+  // Calculate how much food to drop (based on player's score)
+  const foodToDrop = Math.min(Math.floor(player.score / 2), 50); // Cap at 50 pieces
+  const foodValue = Math.max(1, Math.floor(player.score / foodToDrop)); // Each piece worth at least 1
+  
+  console.log(`💀 Player ${player.name} died with ${player.score} points, dropping ${foodToDrop} food pieces`);
+  
+  // Drop food in a scattered pattern around death location
+  for (let i = 0; i < foodToDrop; i++) {
+    // Random angle and distance for scatter effect
+    const angle = Math.random() * 2 * Math.PI;
+    const distance = Math.random() * 150 + 20; // 20-170 pixels from death point
+    
+    const foodX = Math.max(20, Math.min(gameState.gameWidth - 20, 
+      player.x + Math.cos(angle) * distance));
+    const foodY = Math.max(20, Math.min(gameState.gameHeight - 20, 
+      player.y + Math.sin(angle) * distance));
+    
+    const droppedFood = generateFoodAt(foodX, foodY, foodValue);
+    gameState.food.push(droppedFood);
+  }
+  
+  // Remove excess food if we're over the limit
+  while (gameState.food.length > gameState.maxFood + 100) {
+    gameState.food.shift(); // Remove oldest food
+  }
+}
+
 // Initialize food
 function initializeFood() {
   for (let i = 0; i < gameState.maxFood; i++) {
@@ -147,6 +189,7 @@ function checkFoodCollision(player) {
     }
   });
 }
+}
 
 function checkPlayerCollisions(currentPlayer) {
   gameState.players.forEach((otherPlayer) => {
@@ -155,8 +198,8 @@ function checkPlayerCollisions(currentPlayer) {
     // Check collision with other player's head
     const headDistance = getDistance(currentPlayer, otherPlayer);
     if (headDistance < 30) {
-      // Collision detected - respawn current player
-      respawnPlayer(currentPlayer);
+      // Collision detected - eliminate current player
+      eliminatePlayer(currentPlayer);
       return;
     }
     
@@ -164,34 +207,34 @@ function checkPlayerCollisions(currentPlayer) {
     otherPlayer.segments.forEach((segment) => {
       const segmentDistance = getDistance(currentPlayer, segment);
       if (segmentDistance < 20) {
-        respawnPlayer(currentPlayer);
+        eliminatePlayer(currentPlayer);
         return;
       }
     });
   });
 }
 
-function respawnPlayer(player) {
-  // Reset player position and stats
-  const newX = Math.random() * gameState.gameWidth;
-  const newY = Math.random() * gameState.gameHeight;
+function eliminatePlayer(player) {
+  console.log(`💀 Eliminating player: ${player.name} (Score: ${player.score})`);
   
-  player.x = newX;
-  player.y = newY;
-  player.score = 0;
-  player.length = 5;
-  player.maxSegments = 5;
-  player.segments = [
-    { x: newX - 20, y: newY },
-    { x: newX - 40, y: newY },
-    { x: newX - 60, y: newY },
-    { x: newX - 80, y: newY }
-  ];
-  player.direction = { x: 0, y: 0 };
-  player.headSize = 18;
+  // Drop food based on player's score
+  dropPlayerFood(player);
   
-  // Notify the player of respawn
-  io.to(player.id).emit('playerRespawned');
+  // Remove player from game state
+  gameState.players.delete(player.id);
+  
+  // Notify the eliminated player
+  io.to(player.id).emit('gameOver', {
+    finalScore: player.score,
+    message: `Game Over! You scored ${player.score} points.`
+  });
+  
+  // Notify other players that this player left
+  io.emit('playerEliminated', {
+    playerId: player.id,
+    playerName: player.name,
+    finalScore: player.score
+  });
 }
 
 // Socket connection handling
