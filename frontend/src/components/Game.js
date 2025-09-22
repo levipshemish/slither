@@ -64,25 +64,18 @@ const Game = () => {
   const drawCircularBoundary = (ctx, gameState) => {
     if (!gameState.worldRadius) return;
     
-    // Draw the boundary circle
-    ctx.strokeStyle = '#ff6b6b';
-    ctx.lineWidth = 4;
-    ctx.setLineDash([20, 10]); // Dashed line
-    ctx.beginPath();
-    ctx.arc(gameState.centerX || 0, gameState.centerY || 0, gameState.worldRadius, 0, 2 * Math.PI);
-    ctx.stroke();
-    ctx.setLineDash([]); // Reset dash
+    const centerX = gameState.centerX || 0;
+    const centerY = gameState.centerY || 0;
+    const radius = gameState.worldRadius;
     
-    // Add a warning zone closer to the edge
-    ctx.strokeStyle = '#ffa500';
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.3;
-    ctx.setLineDash([10, 5]);
-    ctx.beginPath();
-    ctx.arc(gameState.centerX || 0, gameState.centerY || 0, gameState.worldRadius - 100, 0, 2 * Math.PI);
-    ctx.stroke();
+    // Draw bright, thick red boundary line
+    ctx.strokeStyle = '#FF0000';
+    ctx.lineWidth = 8;
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    ctx.stroke();
   };
 
   const drawGrid = (ctx, offsetX, offsetY, width, height) => {
